@@ -11,6 +11,8 @@ player_ship = 'images/plyship.png'
 enemy_ship = 'images/enemyship.png'
 ufo_ship = 'images/ufo.png'
 player_bullet = 'images/pbullet.png'
+enemy_bullet = 'images/enemybullet.png'
+ufo_bullet = 'images/enemybullet.png'
 
 
 
@@ -26,6 +28,8 @@ player_group = pygame.sprite.Group()
 enemy_group = pygame.sprite.Group()
 ufo_group = pygame.sprite.Group()
 playerbullet_group = pygame.sprite.Group()
+enemybullet_group = pygame.sprite.Group()
+ufobullet_group = pygame.sprite.Group()
 
 sprite_group = pygame.sprite.Group()
 
@@ -80,6 +84,15 @@ class Enemy(Player):
 		if self.rect.y > s_height:
 			self.rect.x = random.randrange(0, s_width)
 			self.rect.y = random.randrange(-2000, 0)
+		self.shoot()
+
+	def shoot(self):
+		if self.rect.y in(0, 30, 70, 300, 700 ):
+			enemybullet = EnemyBullet(enemy_bullet)
+			enemybullet.rect.x = self.rect.x + 20
+			enemybullet.rect.y = self.rect.y + 50
+			enemybullet_group.add(enemybullet)
+			sprite_group.add(enemybullet)
 
 
 class Ufo(Enemy):
@@ -95,6 +108,15 @@ class Ufo(Enemy):
 			self.move *= -1
 		elif self.rect.x < -200:
 			self.move *= -1
+		self.shoot()
+
+	def shoot(self):
+		if self.rect.x % 50 == 0:
+			ufobullet = EnemyBullet(ufo_bullet)
+			ufobullet.rect.x = self.rect.x + 50
+			ufobullet.rect.y = self.rect.y + 70
+			ufobullet_group.add(ufobullet)
+			sprite_group.add(ufobullet)
 
 
 class PlayerBullet(pygame.sprite.Sprite):
@@ -109,13 +131,21 @@ class PlayerBullet(pygame.sprite.Sprite):
 		if self.rect.y < 0:
 			self.kill()
 
+class EnemyBullet(PlayerBullet):
+	def __init__(self, img):
+		super().__init__(img)
+		self.image.set_colorkey('white')
 
-
-
+	def update(self):
+		self.rect.y += 3
+		if self.rect.y > s_height:
+			self.kill()
 
 
 class Game:
 	def __init__(self):
+		self.count_hit = 0
+		self.count_hit2 = 0
 		self.run_game()
 
 	def create_background(self):
@@ -144,6 +174,23 @@ class Game:
 			ufo_group.add(self.ufo)
 			sprite_group.add(self.ufo)
 
+	def playerbullet_hits_enemy(self):
+		hits = pygame.sprite.groupcollide(enemy_group, playerbullet_group, False, True)
+		for i in hits:
+			self.count_hit += 1
+			if self.count_hit == 3:
+				i.rect.x = random.randrange(0, s_width)
+				i.rect.y = random.randrange(-3000, -100)
+				self.count_hit = 0
+
+	def playerbullet_hits_ufo(self):
+		hits = pygame.sprite.groupcollide(ufo_group, playerbullet_group, False, True)
+		for i in hits:
+			self.count_hit2 += 1
+			if self.count_hit2 == 20:
+				i.rect.x = -199
+				self.count_hit2 = 0
+
 
 	def run_update(self):
 		sprite_group.draw(screen)
@@ -157,6 +204,8 @@ class Game:
 		self.create_ufo()
 		while True:
 			screen.fill('black')
+			self.playerbullet_hits_enemy()
+			self.playerbullet_hits_ufo()
 			self.run_update()
 			for event in pygame.event.get():
 				if event.type == QUIT:
