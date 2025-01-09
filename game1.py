@@ -55,11 +55,15 @@ class Player(pygame.sprite.Sprite):
 		self.image = pygame.image.load(img)
 		self.rect = self.image.get_rect()
 		self.image.set_colorkey('black')
+		self.alive = True	
 
 	def update(self):
+		if self.alive:
 		mouse = pygame.mouse.get_pos()
 		self.rect.x = mouse[0]
 		self.rect.y = mouse[1]
+		else:
+			self.rect.y = s_height + 200
 
 	def shoot(self):
 		bullet = PlayerBullet(player_bullet)
@@ -69,7 +73,8 @@ class Player(pygame.sprite.Sprite):
 		playerbullet_group.add(bullet)
 		sprite_group.add(bullet)
 
-
+	def dead(self):
+		self.alive = False
 
 
 class Enemy(Player):
@@ -141,7 +146,30 @@ class EnemyBullet(PlayerBullet):
 		if self.rect.y > s_height:
 			self.kill()
 
+class Explosion(pygame.sprite.Sprite):
+	def_init_(self, x, y):
+		super().__init__()
+		self.image_list =[]
+		for i in range(1, 6):
+			image = pygame.transform.scale(img, (120, 120))
+			self.image_list.append(img)
+		self.index = 0
+		self.image =self.image_list[self.index]
+		self.rect = self.image.get_rect()
+		self.rect.center = [x, y]
+		self.count_delay = 0
 
+    def update(self):
+    	self.count_delay += 1
+    	if self.count_delay >= 12:
+    		if self.index < Len(self.img_list) - 1:
+    			self.count_delay = 0
+    			self.index += 1
+    			self.image = self.img_list[self.index]
+    	if self.index >= Len(self.img_list) - 1
+    		if self.count_delay >= 12:
+    			self.kill()
+    		
 class Game:
 	def __init__(self):
 		self.count_hit = 0
@@ -180,6 +208,17 @@ class Game:
 		for i in hits:
 			self.count_hit += 1
 			if self.count_hit == 3:
+
+				expl_x = i.rect.x + 20
+				expl_x = i.rect.x + 45
+				explosion = Explosion(expl_x, expl_y)
+				explosion_group.add(explosion)
+				sprite_group.add(explosion)
+				i.rect.x = rendom.randrange(0, s_width)
+				i.rect.x = rendom.randrange(-3000, -100)
+				self.count_hit = 0
+			
+
 				i.rect.x = random.randrange(0, s_width)
 				i.rect.y = random.randrange(-3000, -100)
 				self.count_hit = 0
@@ -189,6 +228,11 @@ class Game:
 		for i in hits:
 			self.count_hit2 += 1
 			if self.count_hit2 == 15:
+				expl_x = i.rect.x + 50
+				expl_x = i.rect.x + 60
+				explosion = Explosion(expl_x, expl_y)
+				explosion_group.add(explosion)
+				sprite_group.add(explosion)
 				i.rect.x = -199
 				self.count_hit2 = 0
 
@@ -196,6 +240,7 @@ class Game:
 		hits = pygame.sprite.spritecollide(self.player, enemybullet_group, True)
 		if hits:
 			self.lives -= 1
+			self.player.dead()
 			if self.lives < 0:
 				pygame.quit()
 				sys.exit()
@@ -204,6 +249,7 @@ class Game:
 		hits = pygame.sprite.spritecollide(self.player, ufobullet_group, True)
 		if hits:
 			self.lives -= 1
+			self.player.dead()
 			if self.lives < 0:
 				pygame.quit()
 				sys.exit()
