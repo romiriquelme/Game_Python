@@ -6,12 +6,14 @@ from pygame.locals import *
 pygame.init()
 
 ''' IMAGES '''
+
 player_ship = 'images/plyship.png'
 enemy_ship = 'images/enemyship.png'
 ufo_ship = 'images/ufo.png'
 player_bullet = 'images/pbullet.png'
 enemy_bullet = 'images/enemybullet.png'
 ufo_bullet = 'images/enemybullet.png'
+
 
 screen = pygame.display.set_mode((0, 0), FULLSCREEN)
 s_width, s_height = screen.get_size()
@@ -26,6 +28,8 @@ ufo_group = pygame.sprite.Group()
 playerbullet_group = pygame.sprite.Group()
 enemybullet_group = pygame.sprite.Group()
 ufobullet_group = pygame.sprite.Group()
+explosion_group = pygame.sprite.Group()
+particle_group = pygame.sprite.Group()
 
 sprite_group = pygame.sprite.Group()
 
@@ -47,6 +51,20 @@ class Background(pygame.sprite.Sprite):
             self.rect.y = random.randrange(-10, 0)
             self.rect.x = random.randrange(-400, s_width)
 
+class Particle(Background):
+    def __init__(self, x, y):
+        super().__init__(x, y)
+        self.rect.x = random.randrange(0, s_width)
+        self.rect.y = random.randrange(0, s_height)
+        self.image.fill('blue')
+        self.vel = random.randint(3,8)
+
+    def update(self):
+        self.rect.y += self.vel
+        if self.rect.y > s_height:
+            self.rect.x = random.randrange(0, s_width)
+            self.rect.y = random.randrange(0, s_height)
+            
 class Player(pygame.sprite.Sprite):
     def __init__(self, img):
         super().__init__()
@@ -69,9 +87,10 @@ class Player(pygame.sprite.Sprite):
             self.rect.y = mouse[1] + 40
         else:
             self.alpha_duration = 0
-            expl_x = self.rect.centerx  # Align explosion with the center of player
-            expl_y = self.rect.centery
-            explosion = LightningExplosion(expl_x, expl_y)
+            expl_x = self.rect.x + 20
+            expl_y = self.rect.y + 40
+            explosion = Explosion(expl_x, expl_y)
+            explosion_group.add(explosion)
             sprite_group.add(explosion)
             pygame.time.delay(22)
             self.rect.y = s_height + 200
@@ -97,37 +116,24 @@ class Player(pygame.sprite.Sprite):
 class Enemy(Player):
     def __init__(self, img):
         super().__init__(img)
-        self.rect.x = random.randrange(0, s_width)
+        self.rect.x = random.randrange(80, s_width-80)
         self.rect.y = random.randrange(-500, 0)
         screen.blit(self.image, (self.rect.x, self.rect.y))
-        self.hit_time = None  # to track when it was hit
 
     def update(self):
         self.rect.y += 1
         if self.rect.y > s_height:
-            self.rect.x = random.randrange(0, s_width)
+            self.rect.x = random.randrange(80, s_width-80)
             self.rect.y = random.randrange(-2000, 0)
         self.shoot()
-        if self.hit_time:
-            if pygame.time.get_ticks() - self.hit_time > 3000:  # 3 seconds after being hit
-                self.explode()
-
+        
     def shoot(self):
-        if self.rect.y in(0, 30, 70, 300, 700):
+        if self.rect.y in(0, 300, 700):
             enemybullet = EnemyBullet(enemy_bullet)
             enemybullet.rect.x = self.rect.x + 20
             enemybullet.rect.y = self.rect.y + 50
             enemybullet_group.add(enemybullet)
             sprite_group.add(enemybullet)
-
-    def hit(self):
-        self.hit_time = pygame.time.get_ticks()  # Record the time when the enemy is hit
-
-    def explode(self):
-        # Align the explosion with the center of the enemy
-        explosion = FireExplosion(self.rect.centerx, self.rect.centery)
-        sprite_group.add(explosion)
-        self.kill()
 
 class Ufo(Enemy):
     def __init__(self, img):
@@ -173,7 +179,7 @@ class PlayerBullet(pygame.sprite.Sprite):
         self.image.set_colorkey('black')
 
     def update(self):
-        self.rect.y -= 5
+        self.rect.y -= 20
         if self.rect.y < 0:
             self.kill()
 
@@ -232,6 +238,7 @@ class Game:
         self.count_hit = 0
         self.count_hit2 = 0
         self.lives = 3
+        self.score = 0
         self.run_game()
 
     def create_background(self):
@@ -242,6 +249,14 @@ class Game:
             background_image.rect.y = random.randrange(0, s_height)
             background_group.add(background_image)
             sprite_group.add(background_image)
+
+    def create_particles(self):
+        for i in range(70):
+            x = 1
+            y = random.randint(1, 7)
+            particle = Particle(x, y)
+            particle_group.add(particle)
+            sprite_group.add(particle)
 
     def create_player(self):
         self.player = Player(player_ship)
@@ -265,15 +280,27 @@ class Game:
         for i in hits:
             self.count_hit += 1
             if self.count_hit == 3:
-                i.hit()  # Trigger enemy hit
+                self.score += 10
+                expl_x = i.rect.x + 20
+                expl_y = i.rect.y + 40
+                explosion = Explosion(expl_x, expl_y)
+                explosion_group.add(explosion)
+                i.rect.x = random.randrange(0, s_width)
+                i.rect.y = random.randrange(-3000, -100)
                 self.count_hit = 0
 
     def playerbullet_hits_ufo(self):
         hits = pygame.sprite.groupcollide(ufo_group, playerbullet_group, False, True)
-        for i in hits:
+        for i in hits: 
             self.count_hit2 += 1
-            if self.count_hit2 == 15:
-                i.hit()  # Trigger UFO hit
+            if self.count_hit2 == 45:
+                self.score += 40
+                expl_x = i.rect.x + 50
+                expl_y = i.rect.y + 60
+                explosion = Explosion(expl_x, expl_y)
+                explosion_group.add(explosion)
+                sprite_group.add(explosion)
+                i.rect.x = -199 
                 self.count_hit2 = 0
 
     def enemybullet_hits_player(self):
@@ -323,18 +350,26 @@ class Game:
 
     def create_lives(self):
         self.live_img = pygame.image.load(player_ship)
-        self.live_img = pygame.transform.scale(self.live_img, (30, 30))
+        self.live_img = pygame.transform.scale(self.live_img, (20, 30))
         n = 0
         for i in range(self.lives):
-            screen.blit(self.live_img, (0 + n, s_height - 50))
-            n += 80
+            screen.blit(self.live_img, (0 + n, s_height - 750))
+            n += 50
 
+    def create_score(self):
+        score = self.score
+        font = pygame.font.SysFont('Calibri', 30)
+        text = font.render(str(score), True, 'green')
+        text_rect = text.get_rect(center=(s_width-150, s_height-750))
+        screen.blit(text, text_rect)
+    
     def run_update(self):
         sprite_group.draw(screen)
         sprite_group.update()
 
     def run_game(self):
         self.create_background()
+        self.create_particles()
         self.create_player()
         self.create_enemy()
         self.create_ufo()
@@ -346,8 +381,11 @@ class Game:
             self.ufobullet_hits_player()
             self.player_enemy_crash()
             self.player_ufo_crash()
-            self.create_lives()
             self.run_update()
+            pygame.draw.rect(screen, 'black', (0,0, s_width, 50))
+            self.create_lives()
+            self.create_score()
+
             for event in pygame.event.get():
                 if event.type == QUIT:
                     pygame.quit()
